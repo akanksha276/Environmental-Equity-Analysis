@@ -1,0 +1,438 @@
+---
+title: "Environmental Equity Analysis"
+author: "Akanksha Joshi"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Introduction
+
+The dataset being used in this project is called the **CalEnviroScreen** dataset. I truly believe that making data driven decisions is the best way to drive real change in this world. Using data to understand the impact on communities has always fascinated me and the CalEnviroScreen dataset provides us the base information from which we can identify California communities that are most affected by pollution, and where people are often vulnerable to pollution’s effects. CalEnviroScreen uses environmental, health, and socioeconomic information to produce scores for every census tract in the state. The scores are mapped so that different communities can be compared.The score measures the relative pollution burdens and vulnerabilities in one census tract compared to others and is not a measure of health risk. 
+
+
+## Data
+
+
+#### Data Source 
+The dataset has been taken from CA Open data. It has been put together by California Office of Environmental Health Hazard Assessment. 
+
+* The link to the dataset source is :
+https://data.ca.gov/dataset/calenviroscreen-3-0-results/resource/89b3f4e9-0bf8-4690-8c6f-715a717f3fae
+
+* The link to the California Office of Environmental Health Hazard Assessment is :
+https://oehha.ca.gov/about
+
+
+#### Data Collection 
+As per the official website the data is sourced from national and state sources. 
+The CalEnviroScreen indicators fall under 2 groups (4 sub-groups) : 
+
+##### **Pollution Indicators**
+
++ **Exposure Indicators :** Contact with pollution 
+    - Air Quality:Ozone, Air Quality:PM2.5, Diesel Particulate Matter, Drinking Water, Pesticides, Toxic Release from facilities, Traffic Impacts
+    
++ **Environmental Effect Indicators :** Adverse environmental conditions caused by pollution 
+    - Cleanup Sites, Groundwater Threats, Hazardous Waste, Impaired Water Bodies, Solid Waste Sites
+    
+##### **Population Characteristics Indicators**
+
++ **Sensitive Population Indicators :** Populations with biological traits that may magnify the effects of pollution exposures 
+    - Asthma, Low Birth Weight, Cardiovascular disease
+
++ **Socioeconomic Factor Indicators :** Community characteristics that result in increased vulnerability to pollution 
+    - Education, Linguistic Isolation, Poverty, Unemployment, Housing.Burden
+
+
+#### Cases 
+The data has been recorded at a Census tract level. Census tracts  are geographic units that are defined for the purpose of taking a census and do not often change and are useful for combining, organizing, and mapping data.
+CalEnviroScreen 3.0 uses census tract boundaries from the 2010 census.
+Boundaries often follow visible features or landmarks, such as roads or rivers.
+
+
+```{r}
+my_data <- read.csv(file = "~/Documents/Fall 2022/ISE - 201/Final Project/calenviroscreen-3.0-results-june-2018-update.csv")
+
+sprintf("Dimentions of the main dataset are : %d rows X %d columns " , dim(my_data)[1] , dim(my_data)[2])
+```
+
+There are **8035 rows**. Each row of the dataset represents a census tract. 
+
+#### Variables 
+There are **57 columns**. Each column represents a different variable. The main variables I will be studying are those associated with the pollution and population indicators, along with studying the CalEnviroScreen Score for different communities.
+
+* The following are the categorical variables :
+  + Census Tract, California County, ZIP, Nearby City, Latitude, Longitude, SB 535 Disadvantaged Community
+* The following are the numerical variables : 
+  + Total population, CES  3.0 Score, CES 3.0 Percentile, CES 3.0 Percentile Range, Ozone, PM 2.5, Diesel, Drinking Water, Pesticides, Tox Release, Traffic, Cleanup Sites, Groundwater Threat, Hazardous Waste, Imp water bodies, Solid Waste, Pollution Burden, Asthma, Low Birth Weight, Cardiovascular Disease, Education, Linguistic Isolation, Poverty
+
+
+#### Type of Study 
+
+The dataset was gathered to make an observational study and make data available for use to the general public as well as help governments make informed data driven decisions.
+
+
+## Data Quality 
+
+For the variables associated with the pollution and population indicators, we will only need the columns which gives us the percentile scores for analysis, not the columns which give an absolute value. Thus, we can drop them.
+
+```{r}
+my_data = subset(my_data, select = -c(Ozone,PM2.5,Diesel.PM,Drinking.Water,Pesticides,
+                                     Tox..Release,Traffic,Cleanup.Sites,Groundwater.Threats,
+                                     Haz..Waste,Imp..Water.Bodies,Solid.Waste, Asthma,
+                                     Low.Birth.Weight,Cardiovascular.Disease,Education,
+                                     Linguistic.Isolation,Poverty,Unemployment,Housing.Burden
+                                     ) )
+sprintf("After dropping, the updated dataset dimensions are : %d rows and %d columns" , dim(my_data)[1], dim(my_data)[2])
+```
+20 columns containing pollution and population indicator values have been dropped. 
+
+Finding total number of N/A values
+```{r}
+sprintf("Total number of N/A values are : %d ",sum(is.na(my_data)))
+```
+Finding total number of rows that contain N/A values
+```{r}
+sprintf("Total number of rows that contain missing values are : %d ",sum(!complete.cases(my_data)))
+```
+We have a total of **1574** missing values in **478** rows.
+The column names which have missing values are
+```{r}
+names(which(colSums(is.na(my_data))>0))
+```
+
+We will not drop any of the 478 rows (which have N/A values) as we will loose a lot of other vital information present in that row. N/A values are only present for pollution and population indicators (numeric variables). We can't drop them, however I can impute the missing values with the mean of the column.
+
+```{r}
+my_data2 <- my_data                                   
+for(i in 1:ncol(my_data2)) {                                  
+  my_data2[ , i][is.na(my_data2[ , i])] <- mean(my_data2[ , i], na.rm = TRUE)
+}
+
+sum_na = sum(is.na(my_data2))
+sprintf("The number of rows with N/A values are : %d rows" ,sum_na) 
+```
+Thus, missing values have been imputed.
+
+Checking for duplicate data 
+```{r}
+sum(duplicated(my_data2))
+```
+There is no duplicate data; each row is a unique census tract.
+There are no format issues with the given dataset.
+
+
+## EDA and further Analysis
+
+Few questions and explorations I can make from this dataset include the following : 
+
+1. What is the correlation between the 12 pollution burden and 8 population characteristic variables?
+2. What is the relationship between population burden, population characteristic and CES score?
+3. Does the total population have any effect on the population burden, pollution characterisic and CES score?
+4. What features are most responsible for the detrimental effects on communities?
+5. Does the pollution burden and the population characteristic equally affect the CalEnviroScreen score?
+
+
+##### 1. What is the correlation between different variables?
+```{r}
+## Creating a dataframe that contains all the indicators as columns
+my_data3 = subset(my_data2, select = c(Ozone.Pctl,PM2.5.Pctl,Diesel.PM.Pctl,Drinking.Water.Pctl,Pesticides.Pctl,
+                                          Tox..Release.Pctl,Traffic.Pctl,Cleanup.Sites.Pctl,Groundwater.Threats.Pctl,
+                                          Haz..Waste.Pctl,Imp..Water.Bodies.Pctl,Solid.Waste.Pctl,Pollution.Burden.Pctl,
+                                          Asthma.Pctl,Low.Birth.Weight.Pctl,Cardiovascular.Disease.Pctl,Education.Pctl,
+                                          Linguistic.Isolation.Pctl,Poverty.Pctl,Unemployment.Pctl,Housing.Burden.Pctl,
+                                          Pop..Char..Pctl))
+#my_data3
+```
+
+```{r}
+## Creating a dataframe that has Only pollution burden indicators
+my_data4 = subset(my_data2, select = c(Ozone.Pctl,PM2.5.Pctl,Diesel.PM.Pctl,Drinking.Water.Pctl,Pesticides.Pctl,
+                                          Tox..Release.Pctl,Traffic.Pctl,Cleanup.Sites.Pctl,Groundwater.Threats.Pctl,
+                                          Haz..Waste.Pctl,Imp..Water.Bodies.Pctl,Solid.Waste.Pctl,Pollution.Burden.Pctl))
+#my_data4
+```
+
+```{r}
+## Creating a dataframe that has Only population characteristic indicators
+my_data5 = subset(my_data2, select = c(Asthma.Pctl,Low.Birth.Weight.Pctl,Cardiovascular.Disease.Pctl,Education.Pctl,
+                                          Linguistic.Isolation.Pctl,Poverty.Pctl,Unemployment.Pctl,Housing.Burden.Pctl,
+                                          Pop..Char..Pctl))
+#my_data5
+```
+
+```{r}
+library(ggcorrplot)
+cor_matrix_polbur = cor(my_data4,  use = 'complete')
+#cor_matrix_polbur
+
+ggcorrplot(cor_matrix_polbur)
+```
+
+
+All pollution indicators are positively correlated to the pollution burden variable. However, we can see there is negative correlation some variables have with variables other than the pollution burden variable.
+
+```{r}
+cor_matrix_popchar = cor(my_data5,  use = 'complete')
+#cor_matrix_popchar
+
+ggcorrplot(cor_matrix_popchar)
+```
+
+
+All population character indicators are positively correlated to each other.
+
+##### 2. What is the relationship between population burden, population characteristic and CES score?
+
+To understand the relation between the pollution burden, population characteristic and CES score :
+We calculate the covariance matrix : 
+```{r}
+updated_df = subset(my_data2, select = c(Pollution.Burden,Pop..Char.,CES.3.0.Score) )
+cov_matrix = cov(updated_df,  use = 'complete')
+cov_matrix
+```
+
+We calculate the correlation matrix : 
+```{r}
+cor_matrix = cor(updated_df,  use = 'complete')
+cor_matrix
+```
+
+We can visualize the above in a plot : 
+```{r}
+library(ggcorrplot)
+ggcorrplot(cor_matrix, method = "circle")
+```
+
+The above correlation matrix calculation and visualization indicates that both the pollution burden and the population characteristic are positively correlated to the CES score. We also see that the population characteristic has a slightly greater positive correlation to the CES 3.0 Score than the pollution burden.
+
+
+##### 3. Does the total population have any effect on the population burden, pollution characteristic and CES score?
+
+To further answer question2 and also answer question3 we group the dataset as per the California Counties. Each row in the dataset indicates one census track belonging to a particular county. There are multiple census tracks belonging to the same county. Thus, it is important for us to total the population for each track to get the county total population. We also take the mean of the CES score and the pollution burden and population characteristic at a county level. This will help us analyze everything at a county level and help us draw conclusions.
+
+```{r}
+# Grouping the dataset by california county
+library(dplyr)
+df2 <- my_data2 %>% group_by(California.County) %>% 
+  dplyr::summarize(Tot_Pop_County=sum(Total.Population),
+            Avg_CES_County= mean(CES.3.0.Score),Avg_Pollution_Burden_County= mean(Pollution.Burden)) %>% as.data.frame()
+
+#df2
+
+```
+
+
+```{r out.width = '100%'}
+# Libraries
+library(ggplot2)
+library(plotly)
+library(viridis)
+library(hrbrthemes)
+library(webshot)
+
+# Interactive version
+p <- df2 %>%
+  mutate(Avg_CES_County=round(Avg_CES_County,0)) %>%
+  mutate(Tot_Pop_County=round(Tot_Pop_County/10,2)) %>%
+  mutate(Avg_Pollution_Burden_County=round(Avg_Pollution_Burden_County,1)) %>%
+  
+  # Reordering counties to having big bubbles on top
+  arrange(desc(Tot_Pop_County)) %>%
+  mutate(California.County = factor(California.County)) %>%
+  mutate(text = paste("County: ", California.County, "\nTot_Pop_County: ", Tot_Pop_County, "\nAvg_CES_County: ", Avg_CES_County, "\nAvg_Pollution_Burden_County: ", Avg_Pollution_Burden_County, sep="")) %>%
+  
+  # Classic ggplot
+  ggplot( aes(x=Avg_CES_County, y=Avg_Pollution_Burden_County, size = Tot_Pop_County, color = California.County, text=text)) +
+    geom_point(alpha=0.7) +
+    scale_size(range = c(1.4, 19), name="Tot_Pop_County") +
+    scale_color_viridis(discrete=TRUE, guide=FALSE) +
+    theme_ipsum() +
+    theme(legend.position="right")
+
+# turning ggplot interactive with plotly
+pp <- ggplotly(p, tooltip="text")
+knitr::include_graphics("./Pol_CES_plot.png")
+```
+
+We can see in the above figure that as the pollution burden is increasing, the mean CES score is also increasing. The size of the bubble indicates the population of the County. Another observation we can see is the trend that for counties with higher population, the CES score and pollution burden tends to be higher. Some outliers to this trend exist such as Contra Costa and Sonoma county which have a population greater than 5 million but CES scores less than 20.
+The above plot can be viewed in interactive mode in html R markdown. The above plot loaded is a static image we get while hovering over the graph.
+
+
+Performing a similar analysis for the **Population Characteristic** we get the below plot.
+```{r}
+df3 <- my_data2 %>% group_by(California.County) %>% 
+  dplyr::summarise(Tot_Pop_County=sum(Total.Population),
+            Avg_CES_County= mean(CES.3.0.Score),Avg_Population_Characteristic_County= mean(Pop..Char.),
+            ) %>%
+  as.data.frame()
+
+```
+
+```{r echo = FALSE, out.width = '100%'}
+# Interactive version
+p <- df3 %>%
+  mutate(Avg_CES_County=round(Avg_CES_County,0)) %>%
+  mutate(Tot_Pop_County=round(Tot_Pop_County/10,2)) %>%
+  mutate(Avg_Population_Characteristic_County=round(Avg_Population_Characteristic_County,1)) %>%
+  
+  # Reorder counties to having big bubbles on top
+  arrange(desc(Tot_Pop_County)) %>%
+  mutate(California.County = factor(California.County)) %>%
+  
+  # prepare text for tooltip
+  mutate(text = paste("County: ", California.County, "\nTot_Pop_County: ", Tot_Pop_County, "\nAvg_CES_County: ", Avg_CES_County, "\nAvg_Population_Characteristic_County: ", Avg_Population_Characteristic_County, sep="")) %>%
+  
+  # Classic ggplot
+  ggplot( aes(x=Avg_CES_County, y=Avg_Population_Characteristic_County, size = Tot_Pop_County, color = California.County, text=text)) +
+    geom_point(alpha=0.7) +
+    scale_size(range = c(1.4, 19), name="Tot_Pop_County") +
+    scale_color_viridis(discrete=TRUE, guide=FALSE) +
+    theme_ipsum() +
+    theme(legend.position="right")
+
+# turn ggplot interactive with plotly
+pp <- ggplotly(p, tooltip="text")
+knitr::include_graphics("./Pop_CES_plot.png")
+```
+
+We see a trend that as the population characteristics (asthma, poverty etc) of the county increases, the CES score also increases. The size of the bubble once again indicates the relative size of the total population of the county. In addition we see that a higher total population leads to a higher population characteristic and CES score.
+
+#### 4. What features are most responsible for the detrimental effects on communities?
+
+
+To understand which features have the most effect on the CalEnviroScore, we need to do **PCA**. PCA is a dimensionality - reduction method that reduces the number of variables of a data set, while preserving as much information as possible.
+
+
+```{r}
+exposure_data = subset(my_data2, select = c(Ozone.Pctl,PM2.5.Pctl,Diesel.PM.Pctl,Drinking.Water.Pctl,
+                                         Pesticides.Pctl,Tox..Release.Pctl,Traffic.Pctl))
+environmental_effect_data = subset(my_data2, select = c(Cleanup.Sites.Pctl,Groundwater.Threats.Pctl,
+                                          Haz..Waste.Pctl,Imp..Water.Bodies.Pctl,Solid.Waste.Pctl))
+sensitive_pop_data = subset(my_data2, select = c(Asthma.Pctl,Low.Birth.Weight.Pctl,Cardiovascular.Disease.Pctl))
+socioeconomic_factor_data = subset(my_data2, select = c(Education.Pctl,Linguistic.Isolation.Pctl,Poverty.Pctl,
+                                                        Unemployment.Pctl,Housing.Burden.Pctl))
+```
+
+
+```{r}
+exposure_data.pca <- prcomp(exposure_data)
+summary(exposure_data.pca, scale=TRUE)
+str(exposure_data.pca)
+```
+
+For the exposure indicators,we can see that the first 3 Principal Components (Ozone, PM2.5 and Diesel) can explain about 75% of the variance.
+
+```{r}
+environmental_effect.pca <- prcomp(environmental_effect_data)
+summary(environmental_effect.pca, scale=TRUE)
+str(environmental_effect.pca)
+```
+
+For the Environmental Effects indicators we see that the first 3 Principal Components (Cleanup.Sites,Groundwater.Threats,Haz..Waste.) explain about 78% of the variability of the data.
+
+```{r}
+sensitive_pop.pca <- prcomp(sensitive_pop_data)
+summary(sensitive_pop.pca, scale=TRUE)
+str(sensitive_pop.pca)
+```
+
+For the Sensitive Population indicators, the first PC alone explains 63% and the first two combined explain 91% (Asthma, Low birth weight) of the variance.
+
+```{r}
+socioeconomic_factor.pca <- prcomp(socioeconomic_factor_data)
+summary(socioeconomic_factor.pca, scale=TRUE)
+str(socioeconomic_factor.pca)
+```
+
+For SocioEconomic Factor indicators, the first principal component alone explains 66%, whereas first two (Education, Linguistic Isolation) combined explain more than 81% of the variability.
+
+
+```{r}
+library(factoextra)
+fviz_eig(socioeconomic_factor.pca)
+```
+
+Thus, from above PCA calculations, we can see that if we take just the first two Principal Components for each Subcategory of indicators given, we can explain on average about 75% of the variability of the data. We can therefore, reduce the number of variables needed to estimate the calenviroscore.
+
+
+#### 5. Does the pollution burden and the population characteristic equally affect the CalEnviroScreen score?
+
+To understand the effect on CalEnviroScreen score we run a hypothesis test to check if the weightage given to CES score should be equal for these two indicators.
+
+Null hypothesis : Ho : The mean Population Characteristic component is equal to the mean Pollution Burden
+
+Alternate hypothesis : HA : The mean Population Characteristic component is not equal to the mean Pollution Burden
+
+Test statistic : Calculating the mean of population characteristic and pollution burden
+
+Reference distribution : t-distribution
+
+```{r}
+t.test(x = my_data$Pollution.Burden, y = my_data$Pop..Char.,alternative="two.sided", conf.level=0.95)
+```
+
+As the p-value is less than 0.05, we **reject** the null hypothesis and accept the alternative hypothesis. This means that a significant difference does exist and the mean between the two components is not equal. Furthermore, this gives us an idea that the effect these two components have on the final CES score may not be exactly equal, with population characteristic having a slightly higher effect.
+
+
+## Conclusion
+
+We have tried to analyze the huge dataset of CalEnviroScreen. In summary, we saw the various correlations that exist between the pollution burden and population characteristic indicators. We saw the effect of the total population on these indicators, wherein we saw a trend of increased CES score for bigger populations.This can help governments allocate relatively larger budgets to tackle the effects of pollution and pop characteristics for bigger population counties. With the help of PCA we were able to determine the important features that most affect the CES score. We can reduce the number of features if we want to do further ML modeling.Another way of looking at this, is that we now know the two indicators in each subcategory that the government or any agency should concentrate on to improve the overall living conditions of a county. Just concentrating and improving on 2 of the factors may result in major benefits and positive changes in society. Our hypothesis testing helped us understand that the pollution burden and population characteristic do not have an equal effect on the CES score. Thus, further analysis or adjustments can be made in future CalEnviroScreen dataset creation by The California Office of Environmental Health Hazard Assessment.
+
+## Limitations and Future Work
+
+As this dataset had certain missing values in numeric variables, we had to impute using the mean. Thus, we do not know if this imputation has had any negative effect on the findings of the project. 
+Another limitation of this dataset is that it does that have any demographic information, thus we cannot draw any conclusions related to that. Within a particular county we cannot understand if one demographic is disproportionately effected over another.
+In the future, we can try and improve the imputation methodology used in the project. We can also make adjustments to the weightage calculation to the CES score for the pollution burden and population characteristic.
+
+
+
+## References 
+
+The California Office of Environmental Health Hazard Assessment has gathered the data and generated a report : 
+https://oehha.ca.gov/media/downloads/calenviroscreen/report/ces3report.pdf
+
+They have mainly covered an in-depth analysis on the individual indicators and  calculated the CalEnviroScreen score.
+
+For PCA visualization - http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/118-principal-component-analysis-in-r-prcomp-vs-princomp/
+
+
+## Appendix
+
+Summary statistics of the dataset
+```{r}
+summary(my_data)
+```
+
+
+Visualizations for PCA
+```{r}
+fviz_pca_var(exposure_data.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+fviz_pca_var(sensitive_pop.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+fviz_pca_var(environmental_effect.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+fviz_pca_var(socioeconomic_factor.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
