@@ -1,11 +1,7 @@
 ---
 title: "Environmental Equity Analysis"
 author: "Akanksha Joshi"
-output:
-  html_document:
-    df_print: paged
-  word_document: default
-always_allow_html: yes
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
